@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IIOT Edge Node - Real-Time Telemetry Dashboard</title>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh;
+            color: #f8fafc;
+            padding: 20px;
+        }
+
+        .max-w-5xl { max-width: 64rem; margin: 0 auto; }
+
+        header {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+            margin-bottom: 2.5rem;
+            border-b: 1px solid #1e293b;
+            padding-bottom: 1.5rem;
+        }
+
+        @media (min-width: 768px) {
+            header { flex-direction: row; align-items: center; }
+        }
+
+        .text-indigo-400 { color: #818cf8; }
+        .text-xs { font-size: 0.75rem; }
+        .text-3xl { font-size: 1.875rem; }
+        .text-6xl { font-size: 3.75rem; font-weight: 700; }
+        .font-extrabold { font-weight: 800; }
+        .text-slate-400 { color: #94a3b8; }
+        .text-sm { font-size: 0.875rem; }
+        .font-mono { font-family: monospace; }
+        
+        .badge {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: rgba(15, 23, 42, 0.6);
+            padding: 0.625rem 1rem;
+            border-radius: 0.75rem;
+            border: 1px solid #1e293b;
+        }
+
+        .status-dot-container { position: relative; display: flex; height: 0.75rem; width: 0.75rem; }
+        .status-ping { position: absolute; display: inline-flex; height: 100%; width: 100%; border-radius: 9999px; opacity: 0.75; }
+        
+        .bg-amber-400 { background-color: #fbbf24; animation: ping 1s infinite; }
+        .bg-amber-500 { background-color: #f59e0b; }
+        .bg-emerald-400 { background-color: #34d399; animation: ping 1s infinite; }
+        .bg-emerald-500 { background-color: #10b981; }
+        .bg-rose-500 { background-color: #ef4444; }
+
+        @keyframes ping { 75%, 100% { transform: scale(2); opacity: 0; } }
+
+        .status-dot { position: relative; display: inline-flex; border-radius: 9999px; height: 0.75rem; width: 0.75rem; }
+
+        .grid { display: grid; grid-template-columns: 1fr; gap: 1.5rem; margin-bottom: 2rem; }
+        @media (min-width: 768px) { .grid { grid-template-columns: 1fr 1fr; } }
+
+        .metric-card {
+            background: rgba(30, 41, 59, 0.7);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(99, 102, 241, 0.3);
+            box-shadow: 0 10px 30px -10px rgba(99, 102, 241, 0.2);
+        }
+
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; }
+
+        .pill-rose { background: rgba(244, 63, 94, 0.1); color: #fb7185; font-size: 0.75rem; padding: 0.25rem 0.625rem; border-radius: 0.375rem; border: 1px solid rgba(244, 63, 94, 0.2); font-weight: 500; }
+        .pill-cyan { background: rgba(6, 182, 212, 0.1); color: #22d3ee; font-size: 0.75rem; padding: 0.25rem 0.625rem; border-radius: 0.375rem; border: 1px solid rgba(6, 182, 212, 0.2); font-weight: 500; }
+
+        .value-container { display: flex; align-items: baseline; gap: 0.5rem; margin-top: 1.5rem; }
+
+        .card-footer {
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(30, 41, 59, 0.6);
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+
+        .console-box { background: #020617; border-radius: 1rem; border: 1px solid #1e293b; overflow: hidden; }
+        .console-header { background: #0f172a; padding: 0.75rem 1rem; border-bottom: 1px solid #1e293b; display: flex; justify-content: space-between; align-items: center; }
+        .console-title { font-size: 0.75rem; font-family: monospace; color: #94a3b8; }
+
+        .clear-btn { font-size: 0.75rem; color: #64748b; background: rgba(30, 41, 59, 0.5); border: none; padding: 0.25rem 0.5rem; border-radius: 0.25rem; cursor: pointer; }
+        .clear-btn:hover { background: #1e293b; color: #f1f5f9; }
+
+        #console-logs { padding: 1rem; height: 12rem; overflow-y: auto; font-family: monospace; font-size: 0.75rem; color: #34d399; line-height: 1.5; }
+        .text-rose-400 { color: #f87171; }
+        .text-amber-400 { color: #fbbf24; }
+        .text-emerald-400 { color: #34d399; }
+    </style>
+
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+</head>
+<body>
+
+    <div class="max-w-5xl">
+        <header>
+            <div>
+                <span class="text-xs font-bold tracking-widest text-indigo-400 uppercase">CUIET Lab Evaluation IV</span>
+                <h1 class="text-3xl font-extrabold mt-1">IIoT Smart Sensor Monitor</h1>
+                <p class="text-slate-400 text-sm mt-1">Target Node ID: <span class="font-mono text-indigo-300">ESP32_WROOM_Industrial_Node_01</span></p>
+            </div>
+            
+            <div class="badge">
+                <div class="status-dot-container">
+                    <span id="status-ping" class="status-ping bg-amber-400"></span>
+                    <span id="status-dot" class="status-dot bg-amber-500"></span>
+                </div>
+                <div class="text-sm">
+                    Broker Link: <span id="status-text" class="text-amber-400" style="font-weight:600;">Initializing...</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="grid">
+            <div class="metric-card">
+                <div class="card-header">
+                    <div>
+                        <p class="text-sm uppercase tracking-wider text-slate-400" style="font-weight:600;">Ambient Temperature</p>
+                        <span class="text-xs font-mono text-slate-500" style="display:block; margin-top:2px;">Topic: home/sensor/dht22/temperature</span>
+                    </div>
+                    <span class="pill-rose">Flat String</span>
+                </div>
+                <div class="value-container">
+                    <span id="temp-value" class="text-6xl">--.-</span>
+                    <span class="text-3xl" style="color: #64748b;">°C</span>
+                </div>
+                <div class="card-footer">
+                    <span>Transmission: MQTT Stream</span>
+                    <span id="temp-time">Waiting for data...</span>
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <div class="card-header">
+                    <div>
+                        <p class="text-sm uppercase tracking-wider text-slate-400" style="font-weight:600;">Relative Humidity</p>
+                        <span class="text-xs font-mono text-slate-500" style="display:block; margin-top:2px;">Topic: home/sensor/dht22/humidity</span>
+                    </div>
+                    <span class="pill-cyan">JSON Packet</span>
+                </div>
+                <div class="value-container">
+                    <span id="hum-value" class="text-6xl">--.-</span>
+                    <span class="text-3xl" style="color: #64748b;">%</span>
+                </div>
+                <div class="card-footer">
+                    <span>Transmission: MQTT Stream</span>
+                    <span id="hum-time">Waiting for data...</span>
+                </div>
+            </div>
+        </main>
+
+        <section class="console-box">
+            <div class="console-header">
+                <span class="console-title">Console Live Broker Subscriptions Data Feed</span>
+                <button onclick="clearConsole()" class="clear-btn">Clear Terminal Logs</button>
+            </div>
+            <div id="console-logs">
+                [SYSTEM LOG] Dashboard loaded. Monitoring active subscriptions background threads...
+            </div>
+        </section>
+    </div>
+
+    <script>
+        const brokerUrl = 'wss://broker.emqx.io:8084/mqtt'; 
+        const topics = ['home/sensor/dht22/temperature', 'home/sensor/dht22/humidity'];
+
+        const options = {
+            clientId: 'Web_UI_' + Math.random().toString(16).substring(2, 10),
+            clean: true,
+            connectTimeout: 4000,
+            reconnectPeriod: 3000
+        };
+
+        const consoleLogElement = document.getElementById('console-logs');
+        const statusText = document.getElementById('status-text');
+        const statusDot = document.getElementById('status-dot');
+        const statusPing = document.getElementById('status-ping');
+
+        function printToConsole(message, type = 'info') {
+            const time = new Date().toLocaleTimeString();
+            let colorClass = 'text-emerald-400';
+            if (type === 'error') colorClass = 'text-rose-400';
+            if (type === 'warn') colorClass = 'text-amber-400';
+            
+            consoleLogElement.innerHTML += `<div class="${colorClass}">[${time}] ${message}</div>`;
+            consoleLogElement.scrollTop = consoleLogElement.scrollHeight;
+        }
+
+        function clearConsole() {
+            consoleLogElement.innerHTML = `<div class="text-slate-500">[Console Cleared] Dashboard online.</div>`;
+        }
+
+        printToConsole('Connecting to public broker via secure WebSockets: ' + brokerUrl);
+        const client = mqtt.connect(brokerUrl, options);
+
+        client.on('connect', () => {
+            statusText.textContent = "CONNECTED";
+            statusText.style.color = "#34d399";
+            statusDot.className = "status-dot bg-emerald-500";
+            statusPing.className = "status-ping bg-emerald-400";
+            printToConsole('MQTT Web Link Verified.', 'info');
+
+            topics.forEach(topic => {
+                client.subscribe(topic, (err) => {
+                    if (!err) printToConsole(`Listening on channel topic: ${topic}`);
+                });
+            });
+        });
+
+        client.on('error', (err) => printToConsole('Handshake Error: ' + err, 'error'));
+        client.on('offline', () => {
+            statusText.textContent = "OFFLINE";
+            statusText.style.color = "#ef4444";
+            statusDot.className = "status-dot bg-rose-500";
+            statusPing.className = "hidden";
+        });
+
+        // Smart Adaptive Processing Logic Engine
+        client.on('message', (topic, payload) => {
+            const rawMessage = payload.toString().trim();
+            const currentTime = new Date().toLocaleTimeString();
+            printToConsole(`Received [${topic}] -> ${rawMessage}`);
+
+            try {
+                if (topic === 'home/sensor/dht22/temperature') {
+                    // Temperature arrives from the ESP32 as a raw string metric (e.g., "29.70")
+                    const val = parseFloat(rawMessage);
+                    if (!isNaN(val)) {
+                        document.getElementById('temp-value').textContent = val.toFixed(2);
+                        document.getElementById('temp-time').textContent = `Updated: ${currentTime}`;
+                    }
+                } 
+                else if (topic === 'home/sensor/dht22/humidity') {
+                    // Humidity arrives inside a JSON structure payload string
+                    const jsonData = JSON.parse(rawMessage);
+                    if (jsonData && jsonData.humidity !== undefined) {
+                        const val = parseFloat(jsonData.humidity);
+                        if (!isNaN(val)) {
+                            document.getElementById('hum-value').textContent = val.toFixed(2);
+                            document.getElementById('hum-time').textContent = `Updated: ${currentTime}`;
+                        }
+                    }
+                }
+            } catch (e) {
+                printToConsole(`Data Frame Handling Exception: ${e.message}`, 'error');
+            }
+        });
+    </script>
+</body>
+</html>
