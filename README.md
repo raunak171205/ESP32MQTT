@@ -1,7 +1,7 @@
 # Multi-Interface Edge Computing Node: Heterogeneous Data Splitting
 
 ## 🎓 Academic Portfolio & Student Metadata
-* **Student Name:** [Your Name Here] * **Roll Number:** [Your Roll Number Here] * **Institution:** Chitkara University Institute of Engineering and Technology (CUIET)
+* **Student Name:** Raunak * **Roll Number:** 2310994547 * **Institution:** Chitkara University Institute of Engineering and Technology (CUIET)
 * **Evaluation Track:** Lab Evaluation – IV (IoT Subsystems & Heterogeneous Routing)
 
 ---
